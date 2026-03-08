@@ -3,12 +3,41 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
 
 	docs "github.com/urfave/cli-docs/v3"
 	cli "github.com/urfave/cli/v3"
 )
+
+func findCueFiles(path string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && filepath.Ext(path) == ".cue" {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
+func run(path, mode string, split bool) error {
+	fmt.Printf("cuebernetes - %s in %s\n", mode, path)
+	files, err := findCueFiles(path)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("found %d files\n", len(files))
+	return nil
+}
 
 func main() {
 	var path string
@@ -83,8 +112,7 @@ func main() {
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			fmt.Printf("cuebernetes - %s in %s\n", mode, path)
-			return nil
+			return run(path, mode, split)
 		},
 	}
 
