@@ -6,15 +6,48 @@ import (
 	"log"
 	"os"
 
-	"github.com/urfave/cli/v3"
+	docs "github.com/urfave/cli-docs/v3"
+	cli "github.com/urfave/cli/v3"
 )
 
 func main() {
-	cmd := &cli.Command{
-		Name:        "cuebernetes",
-		Description: "cuebernetes is a tool for converting Cue based k8s files to YAML",
-		Version:     "0.1.0",
+	var path string
+	var mode string
+	var split bool
 
+	app := &cli.Command{
+		Name:                  "cuebernetes",
+		Description:           "cuebernetes is a tool for converting Cue based k8s files to YAML",
+		Version:               "0.1.0",
+		EnableShellCompletion: true,
+		Suggest:               true,
+
+		Commands: []*cli.Command{
+			{
+				Name:   "man",
+				Hidden: true,
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					man, err := docs.ToMan(cmd.Root())
+					if err != nil {
+						return err
+					}
+					fmt.Println(man)
+					return nil
+				},
+			},
+			{
+				Name:   "markdown",
+				Hidden: true,
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					man, err := docs.ToMarkdown(cmd.Root())
+					if err != nil {
+						return err
+					}
+					fmt.Println(man)
+					return nil
+				},
+			},
+		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "mode",
@@ -22,6 +55,7 @@ func main() {
 				Usage:       `Which mode to use (print|write)`,
 				Value:       "print",
 				DefaultText: "print",
+				Destination: &mode,
 				Validator: func(s string) error {
 					switch s {
 					case "print":
@@ -34,18 +68,27 @@ func main() {
 				},
 			},
 			&cli.BoolFlag{
-				Name:    "split",
-				Aliases: []string{"s"},
-				Usage:   `Split the file into multiple YAML files`,
+				Name:        "split",
+				Aliases:     []string{"s"},
+				Usage:       `Split the file into multiple YAML files`,
+				Destination: &split,
+			},
+		},
+		Arguments: []cli.Argument{
+			&cli.StringArg{
+				Name:        "path",
+				UsageText:   `File or directory to convert`,
+				Value:       ".",
+				Destination: &path,
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			fmt.Printf("cuebernetes - %s\n", cmd.String("mode"))
+			fmt.Printf("cuebernetes - %s in %s\n", mode, path)
 			return nil
 		},
 	}
 
-	if err := cmd.Run(context.Background(), os.Args); err != nil {
+	if err := app.Run(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
 	}
 }
