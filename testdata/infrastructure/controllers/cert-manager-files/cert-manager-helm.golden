@@ -1,0 +1,23 @@
+# generated from testdata/infrastructure/controllers/cert-manager-files/cert-manager-helm.cue -- DO NOT EDIT
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager-files
+  namespace: cert-manager-files
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: cert-manager-files
+  install:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 2m
+  interval: 12h
+  upgrade:
+    strategy:
+      name: RetryOnFailure
+      retryInterval: 3m
+  values:
+    crds:
+      enabled: true
+      keep: false

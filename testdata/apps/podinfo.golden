@@ -1,0 +1,42 @@
+# generated from testdata/apps/podinfo.cue -- DO NOT EDIT
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    toolkit.fluxcd.io/tenant: dev-team
+  name: podinfo
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: podinfo
+  namespace: podinfo
+spec:
+  interval: 5m
+  url: https://stefanprodan.github.io/podinfo
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: podinfo
+spec:
+  chart:
+    spec:
+      chart: podinfo
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+  install:
+    remediation:
+      retries: 3
+  interval: 50m
+  releaseName: podinfo
+  values:
+    redis:
+      enabled: true
+      repository: public.ecr.aws/docker/library/redis
+      tag: 7.0.6
+    ingress:
+      enabled: true
+      className: nginx
