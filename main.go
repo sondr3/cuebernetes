@@ -18,10 +18,12 @@ import (
 )
 
 func walkDirIgnores(d fs.DirEntry) error {
-	if d.IsDir() && strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
-		return filepath.SkipDir
-	} else if d.IsDir() && d.Name() == "cue.mod" {
-		return filepath.SkipDir
+	if d.IsDir() {
+		if strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+			return filepath.SkipDir
+		} else if d.Name() == "cue.mod" {
+			return filepath.SkipDir
+		}
 	}
 	return nil
 }
