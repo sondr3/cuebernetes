@@ -7,14 +7,28 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	docs "github.com/urfave/cli-docs/v3"
 	cli "github.com/urfave/cli/v3"
 )
 
+func walkDirIgnores(path string, d fs.DirEntry) error {
+	if d.IsDir() && strings.HasPrefix(d.Name(), ".") && d.Name() != "." {
+		return filepath.SkipDir
+	} else if d.IsDir() && d.Name() == "cue.mod" {
+		return filepath.SkipDir
+	}
+	return nil
+}
+
 func findCueFiles(path string) ([]string, error) {
 	var files []string
 	err := filepath.WalkDir(path, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		err = walkDirIgnores(path, d)
 		if err != nil {
 			return err
 		}
