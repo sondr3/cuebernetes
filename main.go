@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
-
-	"errors"
 
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
@@ -60,7 +60,7 @@ func findCueFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-func parseManifest(v cue.Value) (bool, error) {
+func isManifest(v cue.Value) (bool, error) {
 	apiVersion := v.LookupPath(cue.ParsePath("apiVersion"))
 	kind := v.LookupPath(cue.ParsePath("kind"))
 	if apiVersion.Exists() && kind.Exists() {
@@ -88,17 +88,17 @@ func (h *Handler) parseFile(file string) error {
 	instances := load.Instances([]string{file}, nil)
 	values, err := ctx.BuildInstances(instances)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("building CUE instances for %s: %w", file, err)
 	}
 
 	var errs []error
 	for _, value := range values {
-		isManifest, err := parseManifest(value)
+		ok, err := isManifest(value)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", file, err))
 			continue
 		}
-		if isManifest {
+		if ok {
 			val, err := yaml.Encode(value)
 			if err != nil {
 				return err
@@ -118,12 +118,12 @@ func (h *Handler) parseFile(file string) error {
 		for iter.Next() {
 			label := iter.Selector().String()
 			v := iter.Value()
-			isManifest, err := parseManifest(v)
+			ok, err := isManifest(v)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%s: %s: %w", file, label, err))
 				continue
 			}
-			if isManifest {
+			if ok {
 				val, err := yaml.Encode(v)
 				if err != nil {
 					return err
@@ -150,29 +150,34 @@ func StringifyManifests(file string, manifests []Manifest) string {
 	return b.String()
 }
 
+func (h *Handler) sortedFiles() []string {
+	files := make([]string, 0, len(h.Manifests))
+	for file := range h.Manifests {
+		files = append(files, file)
+	}
+	slices.Sort(files)
+	return files
+}
+
 func (h *Handler) Print() string {
 	var b strings.Builder
-	lbl := 0
-	for file, manifests := range h.Manifests {
-		b.WriteString(StringifyManifests(file, manifests))
-		if lbl != len(h.Manifests)-1 {
+	files := h.sortedFiles()
+	for i, file := range files {
+		b.WriteString(StringifyManifests(file, h.Manifests[file]))
+		if i != len(files)-1 {
 			b.WriteString("---\n")
-			lbl++
 		}
 	}
 	return b.String()
 }
 
 func (h *Handler) Write(out string, split bool) error {
-	_, err := os.Stat(out)
-	if os.IsNotExist(err) {
-		err := os.Mkdir(out, 0755)
-		if err != nil && !os.IsExist(err) {
-			return err
-		}
+	if err := os.MkdirAll(out, 0755); err != nil {
+		return err
 	}
 
-	for file, manifests := range h.Manifests {
+	for _, file := range h.sortedFiles() {
+		manifests := h.Manifests[file]
 		if split {
 			for _, manifest := range manifests {
 				dir := filepath.Join(out, filepath.Dir(file))
@@ -238,6 +243,7 @@ func main() {
 
 	app := &cli.Command{
 		Name:                  "cuebernetes",
+		Usage:                 "Convert CUE Kubernetes manifests to YAML",
 		Description:           "cuebernetes is a tool for converting Cue based k8s files to YAML",
 		Version:               "0.1.0",
 		EnableShellCompletion: true,
@@ -278,14 +284,10 @@ func main() {
 				DefaultText: "print",
 				Destination: &mode,
 				Validator: func(s string) error {
-					switch s {
-					case "print":
-						return nil
-					case "write":
-						return nil
-					default:
+					if s != "print" && s != "write" {
 						return fmt.Errorf("invalid mode: %s, must be either 'print' or 'write'", s)
 					}
+					return nil
 				},
 			},
 			&cli.StringFlag{
