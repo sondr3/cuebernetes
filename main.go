@@ -176,7 +176,8 @@ func (h *Handler) Write(out string, split bool) error {
 		return err
 	}
 
-	for _, file := range h.sortedFiles() {
+	files := h.sortedFiles()
+	for _, file := range files {
 		manifests := h.Manifests[file]
 		if split {
 			for _, manifest := range manifests {
@@ -205,6 +206,7 @@ func (h *Handler) Write(out string, split bool) error {
 		}
 	}
 
+	fmt.Printf("Wrote %d file(s)\n", len(files))
 	return nil
 }
 

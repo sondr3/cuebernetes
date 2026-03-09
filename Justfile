@@ -4,3 +4,6 @@ run *FLAGS:
 
 build:
     go build -o cuebernetes main.go
+
+test:
+    go test -v
