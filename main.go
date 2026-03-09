@@ -140,7 +140,7 @@ func (h *Handler) parseFile(file string) error {
 
 func StringifyManifests(file string, manifests []Manifest) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("# generated from %s -- DO NOT EDIT\n", file))
+	_, _ = fmt.Fprintf(&b, "# generated from %s -- DO NOT EDIT\n", file)
 	for i, manifest := range manifests {
 		b.Write(manifest.Value)
 		if i != len(manifests)-1 {
