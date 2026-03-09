@@ -116,17 +116,23 @@ func (h *Handler) parseFile(file string) error {
 	return nil
 }
 
+func StringifyManifests(file string, manifests []Manifest) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("# generated from %s DO NOT EDIT\n", file))
+	for i, manifest := range manifests {
+		b.Write(manifest.Value)
+		if i != len(manifests)-1 {
+			b.WriteString("---\n")
+		}
+	}
+	return b.String()
+}
+
 func (h *Handler) Print() string {
 	var b strings.Builder
 	lbl := 0
-	for label, manifests := range h.Manifests {
-		b.WriteString(fmt.Sprintf("# generated from %s DO NOT EDIT\n", label))
-		for i, manifest := range manifests {
-			b.Write(manifest.Value)
-			if i != len(manifests)-1 {
-				b.WriteString("---\n")
-			}
-		}
+	for file, manifests := range h.Manifests {
+		b.WriteString(StringifyManifests(file, manifests))
 		if lbl != len(h.Manifests)-1 {
 			b.WriteString("---\n")
 			lbl++
@@ -135,7 +141,37 @@ func (h *Handler) Print() string {
 	return b.String()
 }
 
-func run(path, mode string, split bool) error {
+func (h *Handler) Write(out string, split bool) error {
+	_, err := os.Stat(out)
+	if os.IsNotExist(err) {
+		err := os.Mkdir(out, 0755)
+		if err != nil && !os.IsExist(err) {
+			return err
+		}
+	}
+
+	for file, manifests := range h.Manifests {
+		if split {
+			for _, manifest := range manifests {
+				newFile := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file))+"-"+strings.ToLower(manifest.Name)+".yaml")
+				err := os.WriteFile(newFile, manifest.Value, 0644)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		newFile := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file))+".yaml")
+		err := os.WriteFile(newFile, []byte(StringifyManifests(file, manifests)), 0644)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func run(path, out, mode string, split bool) error {
 	files, err := findCueFiles(path)
 	if err != nil {
 		return err
@@ -151,13 +187,17 @@ func run(path, mode string, split bool) error {
 	case "print":
 		fmt.Println(handler.Print())
 	case "write":
-		fmt.Println(path)
+		err := handler.Write(out, split)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func main() {
 	var path string
+	var out string
 	var mode string
 	var split bool
 
@@ -213,6 +253,14 @@ func main() {
 					}
 				},
 			},
+			&cli.StringFlag{
+				Name:        "out",
+				Aliases:     []string{"o"},
+				Usage:       "Directory to output files to",
+				Value:       "_yaml",
+				DefaultText: "_yaml",
+				Destination: &out,
+			},
 			&cli.BoolFlag{
 				Name:        "split",
 				Aliases:     []string{"s"},
@@ -229,7 +277,7 @@ func main() {
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return run(path, mode, split)
+			return run(path, out, mode, split)
 		},
 	}
 
