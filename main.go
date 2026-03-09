@@ -9,8 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	//"cuelang.org/go/cue"
+	"cuelang.org/go/cue/cuecontext"
+	"cuelang.org/go/cue/load"
+	"cuelang.org/go/encoding/yaml"
 	docs "github.com/urfave/cli-docs/v3"
-	cli "github.com/urfave/cli/v3"
+	"github.com/urfave/cli/v3"
 )
 
 func walkDirIgnores(path string, d fs.DirEntry) error {
@@ -43,13 +47,36 @@ func findCueFiles(path string) ([]string, error) {
 	return files, nil
 }
 
+func parseCue(files []string) error {
+	ctx := cuecontext.New()
+	instances := load.Instances(files, nil)
+	values, err := ctx.BuildInstances(instances)
+	if err != nil {
+		panic(err)
+	}
+
+	// Parse the values
+	for _, value := range values {
+		out, err := yaml.Encode(value)
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(out))
+		//value.Walk(parseResource, nil)
+	}
+	return nil
+}
+
 func run(path, mode string, split bool) error {
 	fmt.Printf("cuebernetes - %s in %s\n", mode, path)
 	files, err := findCueFiles(path)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("found %d files\n", len(files))
+	err = parseCue(files)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
