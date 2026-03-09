@@ -93,6 +93,24 @@ func (h *Handler) parseFile(file string) error {
 
 	var errs []error
 	for _, value := range values {
+		isManifest, err := parseManifest(value)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", file, err))
+			continue
+		}
+		if isManifest {
+			val, err := yaml.Encode(value)
+			if err != nil {
+				return err
+			}
+			name := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+			h.Manifests[file] = append(h.Manifests[file], Manifest{
+				Name:  name,
+				Value: val,
+			})
+			continue
+		}
+
 		iter, err := value.Fields()
 		if err != nil {
 			return err
@@ -122,7 +140,7 @@ func (h *Handler) parseFile(file string) error {
 
 func StringifyManifests(file string, manifests []Manifest) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("# generated from %s DO NOT EDIT\n", file))
+	b.WriteString(fmt.Sprintf("# generated from %s -- DO NOT EDIT\n", file))
 	for i, manifest := range manifests {
 		b.Write(manifest.Value)
 		if i != len(manifests)-1 {
