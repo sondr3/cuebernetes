@@ -153,16 +153,26 @@ func (h *Handler) Write(out string, split bool) error {
 	for file, manifests := range h.Manifests {
 		if split {
 			for _, manifest := range manifests {
+				dir := filepath.Join(out, filepath.Dir(file))
+				err := os.MkdirAll(dir, 0755)
+				if err != nil {
+					return err
+				}
 				newFile := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file))+"-"+strings.ToLower(manifest.Name)+".yaml")
-				err := os.WriteFile(newFile, manifest.Value, 0644)
+				err = os.WriteFile(newFile, manifest.Value, 0644)
 				if err != nil {
 					return err
 				}
 			}
 		}
 
+		dir := filepath.Join(out, filepath.Dir(file))
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			return err
+		}
 		newFile := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file))+".yaml")
-		err := os.WriteFile(newFile, []byte(StringifyManifests(file, manifests)), 0644)
+		err = os.WriteFile(newFile, []byte(StringifyManifests(file, manifests)), 0644)
 		if err != nil {
 			return err
 		}
