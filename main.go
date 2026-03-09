@@ -9,13 +9,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	//"cuelang.org/go/cue"
+	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
 	"cuelang.org/go/encoding/yaml"
 	docs "github.com/urfave/cli-docs/v3"
 	"github.com/urfave/cli/v3"
 )
+
+type Handler struct {
+	Manifests []cue.Value
+}
 
 func walkDirIgnores(d fs.DirEntry) error {
 	if d.IsDir() {
@@ -49,7 +53,29 @@ func findCueFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-func parseCue(files []string) error {
+func parseManifest(v cue.Value) bool {
+	apiVersion := v.LookupPath(cue.ParsePath("apiVersion"))
+	kind := v.LookupPath(cue.ParsePath("kind"))
+	if apiVersion.Exists() && kind.Exists() {
+		compileError := v.Validate(
+			cue.All(),
+			cue.Attributes(true),
+			cue.Definitions(true),
+			cue.InlineImports(true),
+			cue.Concrete(true),
+			cue.Final(),
+			cue.DisallowCycles(true),
+			cue.Hidden(true),
+			cue.Optional(true),
+		)
+		if compileError != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func (h *Handler) parseCue(files []string) error {
 	ctx := cuecontext.New()
 	instances := load.Instances(files, nil)
 	values, err := ctx.BuildInstances(instances)
@@ -59,12 +85,13 @@ func parseCue(files []string) error {
 
 	// Parse the values
 	for _, value := range values {
-		out, err := yaml.Encode(value)
+		_, err := yaml.Encode(value)
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(out))
-		//value.Walk(parseResource, nil)
+		value.Walk(parseManifest, func(value cue.Value) {
+			h.Manifests = append(h.Manifests, value)
+		})
 	}
 	return nil
 }
@@ -75,7 +102,8 @@ func run(path, mode string, split bool) error {
 	if err != nil {
 		return err
 	}
-	err = parseCue(files)
+	handler := Handler{Manifests: make([]cue.Value, 0)}
+	err = handler.parseCue(files)
 	if err != nil {
 		return err
 	}
