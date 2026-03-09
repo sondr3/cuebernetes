@@ -17,8 +17,13 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+type Manifest struct {
+	Name  string
+	Value []byte
+}
+
 type Handler struct {
-	Manifests []cue.Value
+	Manifests map[string][]Manifest
 }
 
 func walkDirIgnores(d fs.DirEntry) error {
@@ -53,11 +58,11 @@ func findCueFiles(path string) ([]string, error) {
 	return files, nil
 }
 
-func parseManifest(v cue.Value) bool {
+func parseManifest(v cue.Value) (bool, error) {
 	apiVersion := v.LookupPath(cue.ParsePath("apiVersion"))
 	kind := v.LookupPath(cue.ParsePath("kind"))
 	if apiVersion.Exists() && kind.Exists() {
-		compileError := v.Validate(
+		err := v.Validate(
 			cue.All(),
 			cue.Attributes(true),
 			cue.Definitions(true),
@@ -68,44 +73,85 @@ func parseManifest(v cue.Value) bool {
 			cue.Hidden(true),
 			cue.Optional(true),
 		)
-		if compileError != nil {
-			return false
+		if err != nil {
+			return false, err
 		}
+		return false, nil
 	}
-	return true
+	return true, nil
 }
 
-func (h *Handler) parseCue(files []string) error {
+func (h *Handler) parseFile(file string) error {
 	ctx := cuecontext.New()
-	instances := load.Instances(files, nil)
+	instances := load.Instances([]string{file}, nil)
 	values, err := ctx.BuildInstances(instances)
 	if err != nil {
 		panic(err)
 	}
 
-	// Parse the values
 	for _, value := range values {
-		_, err := yaml.Encode(value)
+		iter, err := value.Fields()
 		if err != nil {
 			return err
 		}
-		value.Walk(parseManifest, func(value cue.Value) {
-			h.Manifests = append(h.Manifests, value)
-		})
+		for iter.Next() {
+			label := iter.Selector().String()
+			v := iter.Value()
+			isManifest, err := parseManifest(v)
+			if err != nil {
+				return err
+			}
+			if !isManifest {
+				val, err := yaml.Encode(v)
+				if err != nil {
+					return err
+				}
+				h.Manifests[file] = append(h.Manifests[file], Manifest{
+					Name:  label,
+					Value: val,
+				})
+			}
+		}
 	}
 	return nil
 }
 
+func (h *Handler) Print() string {
+	var b strings.Builder
+	lbl := 0
+	for label, manifests := range h.Manifests {
+		b.WriteString(fmt.Sprintf("# generated from %s DO NOT EDIT\n", label))
+		for i, manifest := range manifests {
+			b.Write(manifest.Value)
+			if i != len(manifests)-1 {
+				b.WriteString("---\n")
+			}
+		}
+		if lbl != len(h.Manifests)-1 {
+			b.WriteString("---\n")
+			lbl++
+		}
+	}
+	return b.String()
+}
+
 func run(path, mode string, split bool) error {
-	fmt.Printf("cuebernetes - %s in %s\n", mode, path)
 	files, err := findCueFiles(path)
 	if err != nil {
 		return err
 	}
-	handler := Handler{Manifests: make([]cue.Value, 0)}
-	err = handler.parseCue(files)
+	handler := Handler{Manifests: make(map[string][]Manifest)}
+	for _, file := range files {
+		err = handler.parseFile(file)
+	}
 	if err != nil {
 		return err
+	}
+	switch mode {
+	case "print":
+		fmt.Println(handler.Print())
+	case "write":
+		fmt.Println(path)
 	}
 	return nil
 }
