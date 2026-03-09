@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"errors"
+
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
@@ -76,9 +78,9 @@ func parseManifest(v cue.Value) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		return false, nil
+		return true, nil
 	}
-	return true, nil
+	return false, nil
 }
 
 func (h *Handler) parseFile(file string) error {
@@ -89,6 +91,7 @@ func (h *Handler) parseFile(file string) error {
 		panic(err)
 	}
 
+	var errs []error
 	for _, value := range values {
 		iter, err := value.Fields()
 		if err != nil {
@@ -99,9 +102,10 @@ func (h *Handler) parseFile(file string) error {
 			v := iter.Value()
 			isManifest, err := parseManifest(v)
 			if err != nil {
-				return err
+				errs = append(errs, fmt.Errorf("%s: %s: %w", file, label, err))
+				continue
 			}
-			if !isManifest {
+			if isManifest {
 				val, err := yaml.Encode(v)
 				if err != nil {
 					return err
@@ -113,7 +117,7 @@ func (h *Handler) parseFile(file string) error {
 			}
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func StringifyManifests(file string, manifests []Manifest) string {
@@ -164,17 +168,17 @@ func (h *Handler) Write(out string, split bool) error {
 					return err
 				}
 			}
-		}
-
-		dir := filepath.Join(out, filepath.Dir(file))
-		err := os.MkdirAll(dir, 0755)
-		if err != nil {
-			return err
-		}
-		newFile := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file))+".yaml")
-		err = os.WriteFile(newFile, []byte(StringifyManifests(file, manifests)), 0644)
-		if err != nil {
-			return err
+		} else {
+			dir := filepath.Join(out, filepath.Dir(file))
+			err := os.MkdirAll(dir, 0755)
+			if err != nil {
+				return err
+			}
+			newFile := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file))+".yaml")
+			err = os.WriteFile(newFile, []byte(StringifyManifests(file, manifests)), 0644)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -187,11 +191,14 @@ func run(path, out, mode string, split bool) error {
 		return err
 	}
 	handler := Handler{Manifests: make(map[string][]Manifest)}
+	var errs []error
 	for _, file := range files {
-		err = handler.parseFile(file)
+		if err := handler.parseFile(file); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	if err != nil {
-		return err
+	if len(errs) > 0 {
+		return errors.Join(errs...)
 	}
 	switch mode {
 	case "print":
