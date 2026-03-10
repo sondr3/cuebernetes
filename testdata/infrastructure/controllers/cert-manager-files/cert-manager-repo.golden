@@ -1,4 +1,4 @@
-# generated from testdata/infrastructure/controllers/cert-manager-files/cert-manager-repo.cue -- DO NOT EDIT
+# DO NOT EDIT -- generated from testdata/infrastructure/controllers/cert-manager-files/cert-manager-repo.cue
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:

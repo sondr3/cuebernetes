@@ -1,4 +1,4 @@
-# generated from testdata/infrastructure/controllers/cert-manager-files/cert-manager-helm.cue -- DO NOT EDIT
+# DO NOT EDIT -- generated from testdata/infrastructure/controllers/cert-manager-files/cert-manager-helm.cue
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:

@@ -33,7 +33,6 @@ namespace.
 package kube
 
 import (
-	helm "cue.dev/x/crd/fluxcd.io/helm/v2"
 	source "cue.dev/x/crd/fluxcd.io/source/v1"
 	core "cue.dev/x/k8s.io/api/core/v1"
 )
@@ -59,8 +58,6 @@ core.#Namespace & {
 }
 ```
 
-
-
 ### Straight out
 
 Just point it at a file (or directory), and it'll print all the Cue files that are
@@ -68,13 +65,16 @@ Kubernetes manifests to `stdout`.
 
 ```shell
 $ cuebernetes testdata/apps/podinfo.cue
-# generated from testdata/apps/podinfo.cue -- DO NOT EDIT
+# DO NOT EDIT -- generated from testdata/apps/podinfo.cue
 apiVersion: v1
 kind: Namespace
 ...
 ```
 
 ### Written out
+
+> [!TIP]
+> If you do `--output .` it'll write the YAML file alongside the Cue files.
 
 Point it at a file or directory, and it'll write those Cue manifests to the
 output directory as a 1-to-1 mapping, essentially just changing the `.cue` to

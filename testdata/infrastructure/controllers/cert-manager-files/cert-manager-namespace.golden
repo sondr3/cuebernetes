@@ -1,4 +1,4 @@
-# generated from testdata/infrastructure/controllers/cert-manager-files/cert-manager-namespace.cue -- DO NOT EDIT
+# DO NOT EDIT -- generated from testdata/infrastructure/controllers/cert-manager-files/cert-manager-namespace.cue
 apiVersion: v1
 kind: Namespace
 metadata:

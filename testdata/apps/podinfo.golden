@@ -1,4 +1,4 @@
-# generated from testdata/apps/podinfo.cue -- DO NOT EDIT
+# DO NOT EDIT -- generated from testdata/apps/podinfo.cue
 apiVersion: v1
 kind: Namespace
 metadata:

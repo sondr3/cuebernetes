@@ -224,7 +224,7 @@ func TestStringifyManifests(t *testing.T) {
 
 	got := StringifyManifests("test.cue", manifests)
 
-	if !strings.HasPrefix(got, "# generated from test.cue -- DO NOT EDIT\n") {
+	if !strings.HasPrefix(got, "# DO NOT EDIT -- generated from test.cue\n") {
 		t.Errorf("missing header comment")
 	}
 	if !strings.Contains(got, "---\n") {
