@@ -225,6 +225,11 @@ func run(path, out, mode string, split bool) error {
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
+	for _, file := range files {
+		if _, ok := handler.Manifests[file]; !ok {
+			fmt.Fprintf(os.Stderr, "warning: no manifests found in %s\n", file)
+		}
+	}
 	switch mode {
 	case "print":
 		fmt.Println(handler.Print())
