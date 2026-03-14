@@ -28,7 +28,7 @@ repo: source.#HelmRepository & {
 
 chart: helm.#HelmRelease & {
 	metadata: {
-		name: "podinfo"
+		name:      "podinfo"
 		namespace: "podinfo"
 	}
 	spec: {
@@ -46,12 +46,12 @@ chart: helm.#HelmRelease & {
 		}
 		values: {
 			redis: {
-				enabled: true
+				enabled:    true
 				repository: "public.ecr.aws/docker/library/redis"
-				tag: "7.0.6"
+				tag:        "7.0.6"
 			}
 			ingress: {
-				enabled: true
+				enabled:   true
 				className: "nginx"
 			}
 		}

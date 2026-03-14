@@ -36,6 +36,10 @@ func TestParseFile(t *testing.T) {
 			name: "unnamed helm release",
 			file: "testdata/infrastructure/controllers/cert-manager-files/cert-manager-helm.cue",
 		},
+		{
+			name: "infrastructure kustomization",
+			file: "testdata/clusters/infrastructure.cue",
+		},
 	}
 
 	for _, tt := range tests {
@@ -90,8 +94,8 @@ func TestFindCueFilesRecursive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("findCueFiles returned error: %v", err)
 	}
-	if len(files) != 5 {
-		t.Fatalf("expected 5 files, got %d: %v", len(files), files)
+	if len(files) != 6 {
+		t.Fatalf("expected 6 files, got %d: %v", len(files), files)
 	}
 }
 
@@ -213,6 +217,25 @@ func TestWriteNestedOutputDir(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(out, "test.yaml")); err != nil {
 		t.Errorf("output file not found: %v", err)
+	}
+}
+
+func TestHandleYamlNoTabs(t *testing.T) {
+	h := Handler{Manifests: make(map[string][]Manifest)}
+	err := h.parseFile("testdata/clusters/infrastructure.cue")
+	if err != nil {
+		t.Fatalf("parseFile returned error: %v", err)
+	}
+
+	manifests, ok := h.Manifests["testdata/clusters/infrastructure.cue"]
+	if !ok {
+		t.Fatal("no manifests found for infrastructure.cue")
+	}
+
+	for _, m := range manifests {
+		if strings.Contains(string(m.Value), "\t") {
+			t.Errorf("manifest %q contains tabs", m.Name)
+		}
 	}
 }
 

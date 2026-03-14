@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -83,6 +84,16 @@ func isManifest(v cue.Value) (bool, error) {
 	return false, nil
 }
 
+func handleYaml(value cue.Value) ([]byte, error) {
+	val, err := yaml.Encode(value)
+	if err != nil {
+		return nil, err
+	}
+
+	val = bytes.ReplaceAll(val, []byte("\t"), []byte("  "))
+	return val, nil
+}
+
 func (h *Handler) parseFile(file string) error {
 	ctx := cuecontext.New()
 	instances := load.Instances([]string{file}, nil)
@@ -99,7 +110,7 @@ func (h *Handler) parseFile(file string) error {
 			continue
 		}
 		if ok {
-			val, err := yaml.Encode(value)
+			val, err := handleYaml(value)
 			if err != nil {
 				return err
 			}
@@ -124,7 +135,7 @@ func (h *Handler) parseFile(file string) error {
 				continue
 			}
 			if ok {
-				val, err := yaml.Encode(v)
+				val, err := handleYaml(v)
 				if err != nil {
 					return err
 				}
