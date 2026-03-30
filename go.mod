@@ -5,7 +5,7 @@ go 1.26
 require (
 	cuelang.org/go v0.16.0
 	github.com/urfave/cli-docs/v3 v3.1.0
-	github.com/urfave/cli/v3 v3.7.0
+	github.com/urfave/cli/v3 v3.8.0
 )
 
 require (
