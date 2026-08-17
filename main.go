@@ -2,6 +2,10 @@ package main
 
 import (
 	"bytes"
+
+	"sigs.k8s.io/yaml/kyaml"
+)
+import (
 	"context"
 	"errors"
 	"fmt"
@@ -15,7 +19,6 @@ import (
 	"cuelang.org/go/cue"
 	"cuelang.org/go/cue/cuecontext"
 	"cuelang.org/go/cue/load"
-	"cuelang.org/go/encoding/yaml"
 	docs "github.com/urfave/cli-docs/v3"
 	"github.com/urfave/cli/v3"
 )
@@ -85,7 +88,8 @@ func isManifest(v cue.Value) (bool, error) {
 }
 
 func handleYaml(value cue.Value) ([]byte, error) {
-	val, err := yaml.Encode(value)
+	encoder := kyaml.Encoder{Compact: false}
+	val, err := encoder.Marshal(value)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +159,7 @@ func StringifyManifests(file string, manifests []Manifest) string {
 	for i, manifest := range manifests {
 		b.Write(manifest.Value)
 		if i != len(manifests)-1 {
-			b.WriteString("---\n")
+			b.WriteString("\n---\n")
 		}
 	}
 	return b.String()
@@ -176,7 +180,7 @@ func (h *Handler) Print() string {
 	for i, file := range files {
 		b.WriteString(StringifyManifests(file, h.Manifests[file]))
 		if i != len(files)-1 {
-			b.WriteString("---\n")
+			b.WriteString("\n---\n")
 		}
 	}
 	return b.String()
@@ -238,7 +242,7 @@ func run(path, out, mode string, split bool) error {
 	}
 	for _, file := range files {
 		if _, ok := handler.Manifests[file]; !ok {
-			fmt.Fprintf(os.Stderr, "warning: no manifests found in %s\n", file)
+			_, _ = fmt.Fprintf(os.Stderr, "warning: no manifests found in %s\n", file)
 		}
 	}
 	switch mode {

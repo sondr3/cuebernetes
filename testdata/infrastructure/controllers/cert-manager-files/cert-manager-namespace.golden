@@ -1,7 +1,11 @@
 # DO NOT EDIT -- generated from testdata/infrastructure/controllers/cert-manager-files/cert-manager-namespace.cue
-apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    toolkit.fluxcd.io/tenant: sre-team
-  name: cert-manager-files
+{
+  apiVersion: "v1",
+  kind: "Namespace",
+  metadata: {
+    labels: {
+      toolkit.fluxcd.io/tenant: "sre-team",
+    },
+    name: "cert-manager-files",
+  },
+}
