@@ -1,0 +1,59 @@
+name: cuebernetes
+author: Sondre Aasemoen
+description: Convert CUE Kubernetes manifests to KYAML
+branding:
+  icon: layers
+  color: blue
+
+inputs:
+  version:
+    description: version to download
+    required: false
+    default: latest
+  dir:
+    description: file or directory to convert
+    required: false
+    default: "."
+  args:
+    description: extra arguments to pass to cuebernetes (e.g. --check)
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download binary
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" == "Linux" ]]; then
+          OS="Linux"
+        elif [[ "$RUNNER_OS" == "macOS" ]]; then
+          OS="Darwin"
+        else
+          echo "Unsupported platform: $RUNNER_OS"
+          exit 1
+        fi
+
+        if [[ "$RUNNER_ARCH" == "X64" ]]; then
+          ARCH="x86_64"
+        elif [[ "$RUNNER_ARCH" == "ARM64" ]]; then
+          ARCH="arm64"
+        elif [[ "$RUNNER_ARCH" == "X86" ]]; then
+          ARCH="i386"
+        else
+          echo "Unsupported architecture: $RUNNER_ARCH"
+          exit 1
+        fi
+
+        VERSION_PATH=${{ inputs.version != 'latest' && format('download/{0}', inputs.version) || 'latest/download' }}
+        URL="https://github.com/sondr3/cuebernetes/releases/${VERSION_PATH}/cuebernetes_${OS}_${ARCH}.tar.gz"
+
+        echo "Downloading from: $URL"
+        curl -L -o cuebernetes.tar.gz "$URL"
+        tar xzf cuebernetes.tar.gz cuebernetes
+        sudo mv cuebernetes /usr/local/bin
+        rm cuebernetes.tar.gz
+
+    - name: Run cuebernetes
+      shell: bash
+      run: cuebernetes ${{ inputs.args }} ${{ inputs.dir }}
