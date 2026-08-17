@@ -21,7 +21,10 @@ go install .
 ## Usage
 
 You can either render directly to KYAML (the default) or write the files back
-out to a output directory (defaults to `_yaml`).
+out to a output directory (defaults to `_yaml`). Use `--check` to verify that
+the generated files on disk are up to date with their CUE sources without
+writing anything; it exits with an error listing any missing or outdated files,
+which is useful in CI.
 
 ### Example data
 

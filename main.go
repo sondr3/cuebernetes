@@ -186,46 +186,71 @@ func (h *Handler) Print() string {
 	return b.String()
 }
 
+type OutputFile struct {
+	Path  string
+	Value []byte
+}
+
+func (h *Handler) outputFiles(out string, split bool) []OutputFile {
+	var outputs []OutputFile
+	for _, file := range h.sortedFiles() {
+		manifests := h.Manifests[file]
+		base := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file)))
+		if split {
+			for _, manifest := range manifests {
+				outputs = append(outputs, OutputFile{
+					Path:  base + "-" + strings.ToLower(manifest.Name) + ".yaml",
+					Value: manifest.Value,
+				})
+			}
+		} else {
+			outputs = append(outputs, OutputFile{
+				Path:  base + ".yaml",
+				Value: []byte(StringifyManifests(file, manifests)),
+			})
+		}
+	}
+	return outputs
+}
+
 func (h *Handler) Write(out string, split bool) error {
 	if err := os.MkdirAll(out, 0755); err != nil {
 		return err
 	}
 
-	files := h.sortedFiles()
-	for _, file := range files {
-		manifests := h.Manifests[file]
-		if split {
-			for _, manifest := range manifests {
-				dir := filepath.Join(out, filepath.Dir(file))
-				err := os.MkdirAll(dir, 0755)
-				if err != nil {
-					return err
-				}
-				newFile := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file))+"-"+strings.ToLower(manifest.Name)+".yaml")
-				err = os.WriteFile(newFile, manifest.Value, 0644)
-				if err != nil {
-					return err
-				}
-			}
-		} else {
-			dir := filepath.Join(out, filepath.Dir(file))
-			err := os.MkdirAll(dir, 0755)
-			if err != nil {
-				return err
-			}
-			newFile := filepath.Join(out, strings.TrimSuffix(file, filepath.Ext(file))+".yaml")
-			err = os.WriteFile(newFile, []byte(StringifyManifests(file, manifests)), 0644)
-			if err != nil {
-				return err
-			}
+	for _, output := range h.outputFiles(out, split) {
+		if err := os.MkdirAll(filepath.Dir(output.Path), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(output.Path, output.Value, 0644); err != nil {
+			return err
 		}
 	}
 
-	fmt.Printf("Wrote %d file(s)\n", len(files))
+	fmt.Printf("Wrote %d file(s)\n", len(h.Manifests))
 	return nil
 }
 
-func run(path, out, mode string, split bool) error {
+func (h *Handler) Check(out string, split bool) error {
+	var stale []string
+	for _, output := range h.outputFiles(out, split) {
+		existing, err := os.ReadFile(output.Path)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			stale = append(stale, fmt.Sprintf("%s: missing", output.Path))
+		case err != nil:
+			return err
+		case !bytes.Equal(existing, output.Value):
+			stale = append(stale, fmt.Sprintf("%s: out of date", output.Path))
+		}
+	}
+	if len(stale) > 0 {
+		return fmt.Errorf("%d file(s) not up to date, rerun with '--mode write' to fix:\n%s", len(stale), strings.Join(stale, "\n"))
+	}
+	return nil
+}
+
+func run(path, out, mode string, split, check bool) error {
 	files, err := findCueFiles(path)
 	if err != nil {
 		return err
@@ -245,6 +270,9 @@ func run(path, out, mode string, split bool) error {
 			_, _ = fmt.Fprintf(os.Stderr, "warning: no manifests found in %s\n", file)
 		}
 	}
+	if check {
+		return handler.Check(out, split)
+	}
 	switch mode {
 	case "print":
 		fmt.Println(handler.Print())
@@ -262,6 +290,7 @@ func main() {
 	var out string
 	var mode string
 	var split bool
+	var check bool
 
 	app := &cli.Command{
 		Name:                  "cuebernetes",
@@ -326,6 +355,12 @@ func main() {
 				Usage:       `Split the file into multiple YAML files`,
 				Destination: &split,
 			},
+			&cli.BoolFlag{
+				Name:        "check",
+				Aliases:     []string{"c"},
+				Usage:       `Verify that the generated files are up to date without writing them`,
+				Destination: &check,
+			},
 		},
 		Arguments: []cli.Argument{
 			&cli.StringArg{
@@ -336,7 +371,7 @@ func main() {
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			return run(path, out, mode, split)
+			return run(path, out, mode, split, check)
 		},
 	}
 

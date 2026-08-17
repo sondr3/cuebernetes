@@ -220,6 +220,70 @@ func TestWriteNestedOutputDir(t *testing.T) {
 	}
 }
 
+func TestCheck(t *testing.T) {
+	h := Handler{Manifests: map[string][]Manifest{
+		"test.cue": {
+			{Name: "ns", Value: []byte("apiVersion: v1\nkind: Namespace\n")},
+			{Name: "repo", Value: []byte("apiVersion: source.toolkit.fluxcd.io/v1\nkind: OCIRepository\n")},
+		},
+	}}
+
+	dir := t.TempDir()
+	out := filepath.Join(dir, "output")
+
+	if err := h.Check(out, false); err == nil {
+		t.Error("expected error when output files are missing")
+	}
+
+	if err := h.Write(out, false); err != nil {
+		t.Fatalf("Write returned error: %v", err)
+	}
+	if err := h.Check(out, false); err != nil {
+		t.Errorf("Check returned error for up to date files: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(out, "test.yaml"), []byte("stale\n"), 0644); err != nil {
+		t.Fatalf("failed to modify output file: %v", err)
+	}
+	err := h.Check(out, false)
+	if err == nil {
+		t.Fatal("expected error when output file is out of date")
+	}
+	if !strings.Contains(err.Error(), "test.yaml: out of date") {
+		t.Errorf("error missing stale file, got: %v", err)
+	}
+}
+
+func TestCheckSplit(t *testing.T) {
+	h := Handler{Manifests: map[string][]Manifest{
+		"test.cue": {
+			{Name: "ns", Value: []byte("apiVersion: v1\nkind: Namespace\n")},
+			{Name: "repo", Value: []byte("apiVersion: source.toolkit.fluxcd.io/v1\nkind: OCIRepository\n")},
+		},
+	}}
+
+	dir := t.TempDir()
+	out := filepath.Join(dir, "output")
+
+	if err := h.Write(out, true); err != nil {
+		t.Fatalf("Write returned error: %v", err)
+	}
+	if err := h.Check(out, true); err != nil {
+		t.Errorf("Check returned error for up to date files: %v", err)
+	}
+
+	if err := os.Remove(filepath.Join(out, "test-repo.yaml")); err != nil {
+		t.Fatalf("failed to remove output file: %v", err)
+	}
+	err := h.Check(out, true)
+	if err == nil {
+		t.Fatal("expected error when a split file is missing")
+	}
+	if !strings.Contains(err.Error(), "test-repo.yaml: missing") {
+		t.Errorf("error missing removed file, got: %v", err)
+	}
+}
+
 func TestHandleYamlNoTabs(t *testing.T) {
 	h := Handler{Manifests: make(map[string][]Manifest)}
 	err := h.parseFile("testdata/clusters/infrastructure.cue")
