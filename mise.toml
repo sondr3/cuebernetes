@@ -1,0 +1,9 @@
+[tasks.dev]
+raw_args = true
+run = "go run main.go"
+
+[tasks.build]
+run = "go build -o cuebernetes main.go"
+
+[tasks.test]
+run = "go test -v"
