@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-    <b>A converter for Kubernetes files in Cue to YAML</b>
+    <b>A converter for Kubernetes files in Cue to KYAML</b>
 </p>
 
 > [!NOTE]
@@ -20,7 +20,7 @@ go install .
 
 ## Usage
 
-You can either render directly to YAML (the default) or write the files back
+You can either render directly to KYAML (the default) or write the files back
 out to a output directory (defaults to `_yaml`).
 
 ### Example data
@@ -66,15 +66,16 @@ Kubernetes manifests to `stdout`.
 ```shell
 $ cuebernetes testdata/apps/podinfo.cue
 # DO NOT EDIT -- generated from testdata/apps/podinfo.cue
-apiVersion: v1
-kind: Namespace
+{
+  apiVersion: "v1",
+  kind: "Namespace",
 ...
 ```
 
 ### Written out
 
 > [!TIP]
-> If you do `--output .` it'll write the YAML file alongside the Cue files.
+> If you do `--output .` it'll write the KYAML file alongside the Cue files.
 
 Point it at a file or directory, and it'll write those Cue manifests to the
 output directory as a 1-to-1 mapping, essentially just changing the `.cue` to
