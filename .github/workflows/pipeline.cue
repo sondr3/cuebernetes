@@ -1,0 +1,38 @@
+package workflows
+
+import "cue.dev/x/githubactions"
+
+githubactions.#Workflow & {
+	name: "pipeline"
+	on: {
+		push: branches: ["main"]
+		pull_request: {}
+		workflow_dispatch: {}
+	}
+	jobs: pipeline: {
+		"runs-on": "ubuntu-latest"
+		steps: [
+			{uses: "actions/checkout@v7"},
+			{
+				uses: "actions/setup-go@v6"
+				with: "go-version-file": "go.mod"
+			},
+			{
+				name: "Format"
+				run:  "test -z \"$(gofmt -l .)\""
+			},
+			{
+				name: "Lint"
+				uses: "golangci/golangci-lint-action@v9"
+			},
+			{
+				name: "Build"
+				run:  "go build -o cuebernetes main.go"
+			},
+			{
+				name: "Test"
+				run:  "go test -v ./..."
+			},
+		]
+	}
+}
